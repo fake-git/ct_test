@@ -3,11 +3,16 @@ import time
 from drivers import *
 from utils import *
 from concurrent.futures.thread import ThreadPoolExecutor
+from registry import RegistryArray
+
+
+data_registry = RegistryArray()
+data_registry = data_registry.getInstance()
+
 
 
 def scrap_pair(index, origin_name, destination_name, origin_id, destination_id, origin_country, destination_country, USD_RATE):
 
-    print(index)
     driver = None
     url = f'https://www.rome2rio.com/map/{origin_name} {origin_country}/{destination_name} {destination_country}'
 
@@ -25,7 +30,6 @@ def scrap_pair(index, origin_name, destination_name, origin_id, destination_id, 
 
     driver.get(url)
     time.sleep(1.5)  # TODO: we need to think if to change that
-    # lock.acquire()
 
     # we giving our driver the location of the transportation list in the html page
     rome2rio_transportation_list = driver.find_element_by_xpath('/html/body/div[2]/div[1]/div[2]/div[2]/div[1]/div[3]')
@@ -33,11 +37,19 @@ def scrap_pair(index, origin_name, destination_name, origin_id, destination_id, 
     # this line will take all the 'div' html tags from 'rome2rio_transportation_list' and put them in a list
     rome2rio_transportation_divs_list = rome2rio_transportation_list.find_elements_by_tag_name('div')  # bus,car etc
 
+    # the final output of every pair
+    all_data = {'from_id': origin_id,
+                'to_id': destination_id,
+                'r2r_min_euro_price': None,
+                'data': []
+                }
     all_prices_list = []
-    data = {}
 
+
+    # iterate route list
     for item in rome2rio_transportation_divs_list:
 
+        current_data = {}
         route, duration, clean_price = None, None, None
 
         if item.get_attribute('data-test') != None:
@@ -56,27 +68,23 @@ def scrap_pair(index, origin_name, destination_name, origin_id, destination_id, 
                     break
 
         if clean_price != None:
-            data['from_id'] = origin_id
-            data['from_name'] = origin_name
-            data['to_id'] = destination_id
-            data['to_name'] = destination_name
-            # from_id_r2r = not possible right now
-            # from_name_r2r = not possible right now
-            # to_id_r2r = not possible right now
-            # to_name_r2r = not possible right now
-            data['transportation_types'] = route
-            data['duration'] = duration
-            data['euro_price'] = clean_price
+            current_data['from_id'] = origin_id
+            current_data['from_name'] = origin_name
+            current_data['to_id'] = destination_id
+            current_data['to_name'] = destination_name
+            current_data['transportation_types'] = route
+            current_data['duration'] = duration
+            current_data['euro_price'] = clean_price
             all_prices_list.append(clean_price)
-            # data['route_link'] = not possible right now
-            data['response_page_link'] = url
-            data['scraping_date'] = get_date()
-            print(data)
-            # print('\n')
+            current_data['response_page_link'] = url
+            current_data['scraping_date'] = get_date()
+            print(current_data)
+            all_data['data'].append(current_data)
         else:
             continue
+    all_data['r2r_min_euro_price'] = min(all_prices_list)
+    data_registry.append_item(all_data)
 
-    # lock.release()
 
 
 # this will be the main operation
