@@ -4,29 +4,30 @@ from drivers import *
 from utils import *
 from concurrent.futures.thread import ThreadPoolExecutor
 from registry import RegistryArray
+import concurrent
 
 
 data_registry = RegistryArray()
 data_registry = data_registry.getInstance()
 
-
+driver = driver_0
 
 def scrap_pair(index, origin_name, destination_name, origin_id, destination_id, origin_country, destination_country, USD_RATE):
 
-    driver = None
+#    driver = None
     url = f'https://www.rome2rio.com/map/{origin_name} {origin_country}/{destination_name} {destination_country}'
 
-
-    if index % 5 == 0:
-        driver = driver_0
-    if index % 5 == 1:
-        driver = driver_1
-    if index % 5 == 2:
-        driver = driver_2
-    if index % 5 == 3:
-        driver = driver_3
-    if index % 5 == 4:
-        driver = driver_4
+#    driver = driver_0
+#    if index % 5 == 0:
+#        driver = driver_0
+#    if index % 5 == 1:
+#        driver = driver_1
+#    if index % 5 == 2:
+#        driver = driver_2
+#    if index % 5 == 3:
+#        driver = driver_3
+#    if index % 5 == 4:
+#        driver = driver_4
 
     driver.get(url)
     time.sleep(1.5)  # TODO: we need to think if to change that
@@ -83,25 +84,26 @@ def scrap_pair(index, origin_name, destination_name, origin_id, destination_id, 
         else:
             continue
     all_data['r2r_min_euro_price'] = min(all_prices_list)
-    data_registry.append_item(all_data)
-
+#    data_registry.append_item(all_data)
+#    driver.close()
 
 
 # this will be the main operation
 def main_operation(data):
-
+    futures = []
     data_size = len(data)
     USD_RATE = get_current_USD_rate()
-    executor = ThreadPoolExecutor(5)
+    executor = ThreadPoolExecutor(2)
     lock = threading.Lock()
 
     for index in range(0, data_size):
 
         # lock.acquire()
 
-        executor.submit(scrap_pair, index, data[index]["from_name"], data[index]["to_name"],
+        f =  executor.submit(scrap_pair, index, data[index]["from_name"], data[index]["to_name"],
                                  data[index]["from_id"], data[index]["to_id"], data[index]["origin_country"],
                                  data[index]["destination_country"], USD_RATE)
         # lock.release()
-
-
+        futures.append(f)
+    for future in concurrent.futures.as_completed(futures):
+        future.result()
